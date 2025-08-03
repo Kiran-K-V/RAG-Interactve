@@ -687,12 +687,6 @@ elif st.session_state.page == "RAG Comparison":
             top_k = st.slider("Top K Results", 1, 10, 5)
             vector_weight = st.slider("Vector Weight (Hybrid RAG)", 0.0, 1.0, 0.7, 0.1)
 
-            # Method selection
-            st.subheader("Methods to Compare")
-            run_simple = st.checkbox("Simple RAG", value=True)
-            run_hybrid = st.checkbox("Hybrid RAG", value=True)
-            run_multi_query = st.checkbox("Multi-Query RAG", value=True)
-
         # Main interface
         if not all([qdrant_url, qdrant_api_key, gemini_api_key, collection_name]):
             st.warning("Please provide all required configuration parameters in the sidebar.")
@@ -708,36 +702,80 @@ elif st.session_state.page == "RAG Comparison":
 
         # Query input
         query = st.text_area("Enter your query:",
-                            placeholder="What would you like to know about your documents?",
-                            height=100)
+                             placeholder="What would you like to know about your documents?",
+                             height=100)
 
-        if st.button("🚀 Run Comparison", type="primary"):
-            if not query:
-                st.warning("Please enter a query.")
-                return
+        if not query:
+            st.warning("Please enter a query to proceed.")
+            return
 
-            st.info("Running RAG comparison... This may take a moment.")
+        # Create columns for separate method buttons
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            if st.button("🔍 Run Simple RAG", type="primary", use_container_width=True):
+                with st.spinner("Running Simple RAG..."):
+                    try:
+                        result = await rag_system.simple_rag(query, collection_name, top_k)
+                        st.success(f"✅ Simple RAG completed in {result.total_time:.3f}s")
+
+                        # Display results
+                        st.subheader("📊 Simple RAG Results")
+                        display_single_result(result)
+
+                    except Exception as e:
+                        st.error(f"❌ Simple RAG failed: {str(e)}")
+
+        with col2:
+            if st.button("🔄 Run Hybrid RAG", type="primary", use_container_width=True):
+                with st.spinner("Running Hybrid RAG..."):
+                    try:
+                        result = await rag_system.hybrid_rag(query, collection_name, top_k, vector_weight)
+                        st.success(f"✅ Hybrid RAG completed in {result.total_time:.3f}s")
+
+                        # Display results
+                        st.subheader("📊 Hybrid RAG Results")
+                        display_single_result(result)
+
+                    except Exception as e:
+                        st.error(f"❌ Hybrid RAG failed: {str(e)}")
+
+        with col3:
+            if st.button("🎯 Run Multi-Query RAG", type="primary", use_container_width=True):
+                with st.spinner("Running Multi-Query RAG..."):
+                    try:
+                        result = await rag_system.multi_query_rag(query, collection_name, top_k)
+                        st.success(f"✅ Multi-Query RAG completed in {result.total_time:.3f}s")
+
+                        # Display results
+                        st.subheader("📊 Multi-Query RAG Results")
+                        display_single_result(result)
+
+                    except Exception as e:
+                        st.error(f"❌ Multi-Query RAG failed: {str(e)}")
+
+        # Add a separator
+        st.divider()
+
+        # Optional: Compare All button for those who still want the comparison
+        if st.button("🚀 Compare All Methods", help="Run all three methods and compare results"):
+            st.info("Running all RAG methods for comparison... This may take a moment.")
 
             results = []
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            methods_to_run = []
-            if run_simple:
-                methods_to_run.append(("Simple RAG", rag_system.simple_rag))
-            if run_hybrid:
-                methods_to_run.append(("Hybrid RAG", rag_system.hybrid_rag))
-            if run_multi_query:
-                methods_to_run.append(("Multi-Query RAG", rag_system.multi_query_rag))
+            methods_to_run = [
+                ("Simple RAG", rag_system.simple_rag),
+                ("Hybrid RAG", lambda q, c, k: rag_system.hybrid_rag(q, c, k, vector_weight)),
+                ("Multi-Query RAG", rag_system.multi_query_rag)
+            ]
 
             for i, (method_name, method_func) in enumerate(methods_to_run):
                 status_text.text(f"Running {method_name}...")
 
                 try:
-                    if method_name == "Hybrid RAG":
-                        result = await method_func(query, collection_name, top_k, vector_weight)
-                    else:
-                        result = await method_func(query, collection_name, top_k)
+                    result = await method_func(query, collection_name, top_k)
                     results.append(result)
                     st.success(f"✅ {method_name} completed in {result.total_time:.3f}s")
                 except Exception as e:
@@ -798,6 +836,75 @@ elif st.session_state.page == "RAG Comparison":
                         file_name=f"rag_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                         mime="application/json"
                     )
+
+
+    def display_single_result(result: RAGResult):
+        """Display results for a single RAG method"""
+
+        # Metrics row
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("Total Time", f"{result.total_time:.3f}s")
+        with col2:
+            st.metric("Retrieval Time", f"{result.retrieval_time:.3f}s")
+        with col3:
+            st.metric("Generation Time", f"{result.generation_time:.3f}s")
+        with col4:
+            avg_score = np.mean(result.similarity_scores) if result.similarity_scores else 0
+            st.metric("Avg Similarity", f"{avg_score:.3f}")
+
+        # Second metrics row
+        col5, col6 = st.columns(2)
+        with col5:
+            st.metric("Chunks Retrieved", len(result.retrieved_chunks))
+        with col6:
+            st.metric("Unique Sources", len(result.sources))
+
+        # Generated Response
+        with st.expander("📝 Generated Response", expanded=True):
+            st.write(result.response)
+
+        # Retrieved Chunks
+        with st.expander(f"📚 Retrieved Chunks ({len(result.retrieved_chunks)})", expanded=False):
+            for i, chunk in enumerate(result.retrieved_chunks):
+                st.write(f"**Chunk {i + 1}** (Score: {chunk['score']:.3f})")
+                st.write(f"*Source: {chunk['source']}*")
+                st.write(chunk['text'][:300] + "..." if len(chunk['text']) > 300 else chunk['text'])
+
+                # Show additional info for hybrid RAG
+                if 'vector_score' in chunk:
+                    st.caption(f"Vector: {chunk['vector_score']:.3f}, Keyword: {chunk['keyword_score']:.3f}")
+
+                # Show matched query for multi-query RAG
+                if 'matched_query' in chunk:
+                    st.caption(f"Matched query: {chunk['matched_query']}")
+
+                if i < len(result.retrieved_chunks) - 1:
+                    st.divider()
+
+        # Export single result
+        if st.button(f"📥 Export {result.method} Results", key=f"export_{result.method}"):
+            result_dict = {
+                'query': result.query,
+                'method': result.method,
+                'timestamp': datetime.now().isoformat(),
+                'total_time': result.total_time,
+                'retrieval_time': result.retrieval_time,
+                'generation_time': result.generation_time,
+                'response': result.response,
+                'similarity_scores': result.similarity_scores,
+                'sources': result.sources,
+                'retrieved_chunks': result.retrieved_chunks
+            }
+
+            st.download_button(
+                label="Download JSON",
+                data=json.dumps(result_dict, indent=2),
+                file_name=f"{result.method.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json",
+                key=f"download_{result.method}"
+            )
 
 
     if __name__ == "__main__":
