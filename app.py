@@ -741,7 +741,7 @@ elif st.session_state.page == "RAG Comparison":
             vector_weight = st.slider("Vector Weight (Hybrid RAG)", 0.0, 1.0, 0.7, 0.1)
 
         # Main interface
-        if not all([gemini_api_key, collection_name]):
+        if not all([collection_name]):
             st.warning("Please provide all required configuration parameters in the sidebar.")
             return
 
