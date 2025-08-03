@@ -125,12 +125,25 @@ embedding_model = load_model()
 
 
 # --- Chunking Functions ---
-def fixed_size_chunking(text, chunk_size, chunk_overlap):
-    splitter = CharacterTextSplitter(
-        separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
-    )
-    return splitter.split_text(text)
+# def fixed_size_chunking(text, chunk_size, chunk_overlap):
+#     splitter = CharacterTextSplitter(
+#         separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
+#     )
+#     return splitter.split_text(text)
 
+
+def fixed_size_chunking(text, chunk_size, chunk_overlap):
+    words = text.split()
+    chunks = []
+    start = 0
+
+    while start < len(words):
+        end = start + chunk_size
+        chunk = " ".join(words[start:end])
+        chunks.append(chunk)
+        start += chunk_size - chunk_overlap  # move start with overlap
+
+    return chunks
 
 def semantic_chunking(breakpoint_threshold):
     documents = SimpleDirectoryReader(input_files=["leave_policy.txt"]).load_data()
