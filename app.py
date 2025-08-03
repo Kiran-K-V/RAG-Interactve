@@ -6,7 +6,6 @@ from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
@@ -206,13 +205,45 @@ def hierarchical_chunking(text: str):
     
     return chunks
 
-def propositional_chunking(text):
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n", ". ", "! ", "? "],
-        chunk_size=100,
-        chunk_overlap=20
-    )
-    return splitter.split_text(text)
+def propositional_chunking(text: str) -> List[str]:
+    """
+    Uses Gemini LLM to split text into propositional chunks.
+    You must initialize the `model` (e.g., genai.GenerativeModel) before calling.
+    """
+    prompt = f"""
+        You are a document segmentation assistant for a RAG system. Split the following policy or instructional text into small, self-contained chunks (called propositional units).
+
+        Each chunk should:
+        - Seperate on conjunctions and disjunctions (e.g., "and", "or").
+        - One line should only contain one sentence 
+        - Avoid splitting sentences in the middle.
+        - Contain exactly one main idea or instruction.
+        - Be phrased clearly and independently.
+        - Preserve the original content's meaning.
+        
+        Return each propositional unit as a separate line.
+
+        Text:
+        \"\"\"
+        {text}
+        \"\"\"
+
+        Propositional chunks:
+        """
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+    
+    try:
+        response = gemini_model.generate_content(prompt)
+        result = response.text.strip()
+        chunks = [line.strip() for line in result.split('\n') if line.strip()]
+        return chunks
+
+    except Exception as e:
+        st.error(f"LLM-based propositional chunking failed: {str(e)}")
+        return []
+
 
 
 def recursive_chunking(text):
