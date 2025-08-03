@@ -10,12 +10,9 @@ import plotly.express as px
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-
+import re
 from langchain.text_splitter import (
     RecursiveCharacterTextSplitter,
-    CharacterTextSplitter,
-    MarkdownHeaderTextSplitter,
-    SentenceTransformersTokenTextSplitter
 )
 from sentence_transformers import SentenceTransformer
 
@@ -41,6 +38,7 @@ from typing import List
 from llama_index.core import SimpleDirectoryReader
 
 # load documents
+
 
 class LocalSentenceTransformerEmbedding(BaseEmbedding):
     _model: SentenceTransformer = PrivateAttr()
@@ -131,7 +129,6 @@ embedding_model = load_model()
 #     )
 #     return splitter.split_text(text)
 
-
 def fixed_size_chunking(text, chunk_size, chunk_overlap):
     words = text.split()
     chunks = []
@@ -144,6 +141,8 @@ def fixed_size_chunking(text, chunk_size, chunk_overlap):
         start += chunk_size - chunk_overlap  # move start with overlap
 
     return chunks
+
+
 
 def semantic_chunking(breakpoint_threshold):
     documents = SimpleDirectoryReader(input_files=["leave_policy.txt"]).load_data()
@@ -159,12 +158,49 @@ def semantic_chunking(breakpoint_threshold):
     nodes = splitter.get_nodes_from_documents(documents)
     return [node.text for node in nodes]
 
-def hierarchical_chunking(text):
-    headers_to_split_on = [("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")]
-    splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
-    chunks = splitter.split_text(text)
-    return [chunk.page_content for chunk in chunks]
-
+def hierarchical_chunking(text: str):
+    """Split text into hierarchical chunks:
+    - Paragraphs
+    - Sentences within paragraphs
+    - Bullet lists (both full lists and individual items)
+    """
+    chunks = []
+    
+    # First normalize line endings and remove empty lines
+    text = re.sub(r'\r\n', '\n', text).strip()
+    
+    # Split by paragraphs (double newlines or markdown headers)
+    paragraphs = re.split(r'\n\n|\n#+ ', text)
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    
+    for para in paragraphs:
+        # Add the full paragraph as a chunk
+        chunks.append(para)
+        
+        # Handle bullet point lists specially
+        if para.startswith(('* ', '- ', '+ ')) or re.search(r'\n[*+-] ', para):
+            # Split bullet list items
+            bullet_items = re.split(r'\n[*+-] ', para)
+            # First item is the list header (might be empty)
+            if bullet_items[0].strip():
+                chunks.append(bullet_items[0].strip())
+            
+            # Add each bullet item as separate chunk
+            for item in bullet_items[1:]:
+                item = item.strip()
+                if item:
+                    chunks.append(f"• {item}")
+        
+        else:  # Regular paragraph - split by sentences
+            # Split sentences using a simple regex (improve as needed)
+            sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s', para)
+            sentences = [s.strip() for s in sentences if s.strip()]
+            
+            # Add sentences only if we actually split the paragraph
+            if len(sentences) > 1:
+                chunks.extend(sentences)
+    
+    return chunks
 
 def propositional_chunking(text):
     splitter = RecursiveCharacterTextSplitter(
@@ -196,7 +232,7 @@ if st.session_state.page == "Chunking Comparison":
     ])
 
     if chunk_method in ["Fixed Size"]:
-        chunk_size = st.number_input("Chunk size", min_value=50, max_value=512, value=500)
+        chunk_size = st.number_input("Chunk size", min_value=50, max_value=512, value=100)
         chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=chunk_size - 1, value=50)
         
     if chunk_method in ["Semantic"]:
