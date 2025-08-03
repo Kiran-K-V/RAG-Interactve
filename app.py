@@ -235,6 +235,7 @@ elif st.session_state.page == "RAG Comparison":
         generation_time: float
         total_time: float
         similarity_scores: List[float]
+        query_variations: List[str]
         sources: List[str]
 
 
@@ -514,6 +515,7 @@ elif st.session_state.page == "RAG Comparison":
                 generation_time=generation_time,
                 total_time=total_time,
                 similarity_scores=similarity_scores,
+                query_variations=query_variations,
                 sources=list(set(sources))
             )
 
@@ -883,6 +885,20 @@ elif st.session_state.page == "RAG Comparison":
                 if i < len(result.retrieved_chunks) - 1:
                     st.divider()
 
+        # Show query variations for Multi-Query RAG
+        if result.method == "Multi-Query RAG" and result.query_variations:
+            with st.expander("🔍 Generated Query Variations", expanded=False):
+                st.write("**Original Query:**")
+                st.code(result.query)
+
+                st.write("**Generated Variations:**")
+                for i, variation in enumerate(result.query_variations[:-1], 1):  # Exclude original query (last item)
+                    st.write(f"**Variation {i}:**")
+                    st.code(variation)
+
+                st.info(
+                    f"Total queries used: {len(result.query_variations)} (1 original + {len(result.query_variations) - 1} variations)")
+
         # Export single result
         if st.button(f"📥 Export {result.method} Results", key=f"export_{result.method}"):
             result_dict = {
@@ -895,7 +911,8 @@ elif st.session_state.page == "RAG Comparison":
                 'response': result.response,
                 'similarity_scores': result.similarity_scores,
                 'sources': result.sources,
-                'retrieved_chunks': result.retrieved_chunks
+                'retrieved_chunks': result.retrieved_chunks,
+                'query_variations': result.query_variations if result.query_variations else []
             }
 
             st.download_button(
@@ -905,7 +922,6 @@ elif st.session_state.page == "RAG Comparison":
                 mime="application/json",
                 key=f"download_{result.method}"
             )
-
 
     if __name__ == "__main__":
         asyncio.run(main())
