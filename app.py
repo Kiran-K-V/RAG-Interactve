@@ -32,6 +32,42 @@ except ImportError:
     st.warning(
         "Some dependencies are missing. RAG functionality may not work without: qdrant-client, sentence-transformers, google-generativeai, scikit-learn")
 
+
+from llama_index.core.base.embeddings.base import BaseEmbedding
+from sentence_transformers import SentenceTransformer
+from pydantic import PrivateAttr
+from typing import List
+
+from llama_index.core import SimpleDirectoryReader
+
+# load documents
+
+class LocalSentenceTransformerEmbedding(BaseEmbedding):
+    _model: SentenceTransformer = PrivateAttr()
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", **kwargs):
+        super().__init__(**kwargs)
+        self._model = SentenceTransformer(model_name)
+
+    def _get_text_embedding(self, text: str) -> List[float]:
+        return self._model.encode(text).tolist()
+
+    def _get_query_embedding(self, query: str) -> List[float]:
+        return self._get_text_embedding(query)
+
+    def _get_text_embeddings(self, texts: List[str]) -> List[List[float]]:
+        return self._model.encode(texts).tolist()
+
+    def _get_query_embeddings(self, queries: List[str]) -> List[List[float]]:
+        return self._get_text_embeddings(queries)
+
+    async def _aget_query_embedding(self, query: str) -> List[float]:
+        return self._get_query_embedding(query)
+
+from llama_index.core.node_parser import SemanticSplitterNodeParser
+
+
+
 # Configure page
 st.set_page_config(
     page_title="Chunking & RAG Systems Comparison",
@@ -96,15 +132,19 @@ def fixed_size_chunking(text, chunk_size, chunk_overlap):
     return splitter.split_text(text)
 
 
-def semantic_chunking(text, chunk_size, chunk_overlap):
-    if chunk_size > embedding_model.max_seq_length:
-        chunk_size = embedding_model.max_seq_length
-    splitter = SentenceTransformersTokenTextSplitter(
-        chunk_overlap=chunk_overlap,
-        tokens_per_chunk=chunk_size,
-    )
-    return splitter.split_text(text)
+def semantic_chunking(breakpoint_threshold):
+    documents = SimpleDirectoryReader(input_files=["leave_policy.txt"]).load_data()
 
+    local_embed_model = LocalSentenceTransformerEmbedding()
+
+    splitter = SemanticSplitterNodeParser(
+        buffer_size=1,
+        breakpoint_percentile_threshold=breakpoint_threshold,
+        embed_model=local_embed_model
+    )
+
+    nodes = splitter.get_nodes_from_documents(documents)
+    return [node.text for node in nodes]
 
 def hierarchical_chunking(text):
     headers_to_split_on = [("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")]
@@ -142,15 +182,18 @@ if st.session_state.page == "Chunking Comparison":
         "Fixed Size", "Semantic", "Hierarchical", "Propositional", "Recursive"
     ])
 
-    if chunk_method in ["Fixed Size", "Semantic"]:
+    if chunk_method in ["Fixed Size"]:
         chunk_size = st.number_input("Chunk size", min_value=50, max_value=512, value=500)
         chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=chunk_size - 1, value=50)
+        
+    if chunk_method in ["Semantic"]:
+        breakpoint_threshold = st.number_input("Breakpoint Threshold", min_value=0, max_value=100, value=80)
 
-    if st.button("🔪 Chunk Document"):
+    if st.button("Chunk Document"):
         if chunk_method == "Fixed Size":
             chunks = fixed_size_chunking(document_text, chunk_size, chunk_overlap)
         elif chunk_method == "Semantic":
-            chunks = semantic_chunking(document_text, chunk_size, chunk_overlap)
+            chunks = semantic_chunking(breakpoint_threshold=breakpoint_threshold)
         elif chunk_method == "Hierarchical":
             chunks = hierarchical_chunking(document_text)
         elif chunk_method == "Propositional":
