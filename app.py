@@ -2,7 +2,7 @@ import streamlit as st
 import asyncio
 import time
 import json
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import plotly.graph_objects as go
@@ -11,6 +11,15 @@ from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
 
+from langchain.text_splitter import (
+    RecursiveCharacterTextSplitter,
+    CharacterTextSplitter,
+    MarkdownHeaderTextSplitter,
+    SentenceTransformersTokenTextSplitter
+)
+from sentence_transformers import SentenceTransformer
+
+# ------------------------------------------
 # Core imports for RAG functionality
 try:
     from qdrant_client import QdrantClient
@@ -20,7 +29,8 @@ try:
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
 except ImportError:
-    st.warning("Some dependencies are missing. RAG functionality may not work without: qdrant-client, sentence-transformers, google-generativeai, scikit-learn")
+    st.warning(
+        "Some dependencies are missing. RAG functionality may not work without: qdrant-client, sentence-transformers, google-generativeai, scikit-learn")
 
 # Configure page
 st.set_page_config(
@@ -30,6 +40,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+QDRANT_URL = "https://eecc4d29-21eb-4d25-8a1b-eb23e1ef755f.us-east4-0.gcp.cloud.qdrant.io:6333/"
+QDRANT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.GD9lmgww5vC-oZ70qukwmd-vn3PaXIopyP5SpTldTdA"
+
+mapping = {
+    "Semantic Chunking": "semantic_chunks_leave_policy",
+    "Fixed Size Chunking": "fixed_size_chunks_leave_policy",
+    "Recursive Chunking": "recursive_chunks_leave_policy",
+    "Hierarchical Chunking": "hierarchical_chunks_leave_policy",
+    "Propositional Chunking": "propositional_chunks_leave_policy"
+}
+
 # Sidebar Navigation
 # with st.sidebar:
 #     st.title("🔍 Navigation")
@@ -37,8 +58,7 @@ st.set_page_config(
 
 if "page" not in st.session_state:
     st.session_state.page = "Chunking Comparison"
-    
-    
+
 with st.sidebar:
     st.title("🔍 Navigation")
     if st.button("📦 Chunking Comparison"):
@@ -46,183 +66,120 @@ with st.sidebar:
     if st.button("🤖 RAG Comparison"):
         st.session_state.page = "RAG Comparison"
 
+
 # ================================
 # CHUNKING SECTION
 # ================================
 
-if st.session_state.page == "Chunking Comparison":
-    CHUNK_DATA = {
-        "fixed_size_chunks": [
-            "- Related guide: [Error Handling](https://docs.stripe.com/error-handling.md)",
-            """Some `4xx` errors that could be handled programmatically (e.g., a card is [declined](https://docs.stripe.com/declines.md)) include an [error code](https://docs.stripe.com/error-codes.md) that briefly explains the error reported.
-    ## Attributes
-    - `advice_code` (string, nullable)
-    For card errors resulting from a card issuer decline, a short string indicating [how to proceed with an error](https://docs.stripe.com/docs/declines.md#retrying-issuer-declines) if they provide one.""",
-            """- `payment_method_type` (string, nullable)
-    If the error is specific to the type of payment method, the payment method type that had a problem. This field is only populated for invoice-related errors.
-    - `request_log_url` (string, nullable)
-    A URL to the request log entry in your dashboard.
-    - `setup_intent` (object, nullable)
-    The [SetupIntent object](https://docs.stripe.com/docs/api/setup_intents/object.md) for errors returned on a request involving a SetupIntent."""
-        ],
-        "semantic_chunks": [
-            """type of error you should expect to handle. they result when the user enters a card that can ' t be charged for some reason. | | ` idempotency _ error ` | idempotency errors occur when an ` idempotency - key ` is re - used on a request that does not match the first request ' s api endpoint and parameters. | | ` invalid _ request _ error ` | invalid request errors arise when your request has invalid parameters. | # handling errors our client libraries raise exceptions for many reasons, such as a failed charge, invalid parameters, authentication errors, and network unavailability. we recommend writing code that gracefully handles all possible api exceptions. - related guide : [ error handling ] ( https : / / docs. stripe. com / error - handling. md )""",
-            """##ki / http _ secure ). calls made over plain http will fail. api requests without authentication will also fail. # # your api key a sample test api key is included in all the examples here, so you can test any example right away. do not submit any personally identifiable information in requests made with this key. to test requests using your account, replace the sample api key with your actual api key or sign in. # errors stripe uses conventional http response codes to indicate the success or failure of an api request. in general : codes in the ` 2xx ` range indicate success. codes in the ` 4xx ` range indicate an error that failed given the information provided ( e. g., a required parameter was omitted, a charge failed, etc. ). codes in the ` 5xx ` range indicate an error with stripe ' s servers ( these are rare ). some ` 4xx ` errors that could be handled programmatically ( e. g., a card is [ declined ] ( https : / / docs. stripe. com / declines. md ) ) include an [ error code ] ( https : / / docs. stripe. com / error - codes. md ) that briefly explains the error reported. # # attributes - ` advice""",
-            """decline, a brand specific 2, 3, or 4 digit code which indicates the reason the authorization failed. - ` param ` ( string, nullable ) if the error is parameter - specific, the parameter related to the error. for example, you can use this to display a message near the correct form field. - ` payment _ intent ` ( object, nullable ) the [ paymentintent object ] ( https : / / docs. stripe. com / docs / api / payment _ intents / object. md ) for errors returned on a request involving a paymentintent. - ` payment _ method ` ( object, nullable ) the [ paymentmethod object ] ( https : / / docs. stripe. com / docs / api / payment _ methods / object. md ) for errors returned on a request involving a paymentmethod. - ` payment _ method _ type ` ( string, nullable ) if the error is specific to the type of payment method, the payment method type that had a problem. this field is only populated for invoice - related errors. - ` request _ log _ url ` ( string, nullable ) a url to the request log entry in your dashboard. - `"""
-        ],
-        "hierarchical_chunks": [
-            """Our Client libraries raise exceptions for many reasons, such as a failed charge, invalid parameters, authentication errors, and network unavailability. We recommend writing code that gracefully handles all possible API exceptions.  
-    - Related guide: [Error Handling](https://docs.stripe.com/error-handling.md)""",
-            """Stripe uses conventional HTTP response codes to indicate the success or failure of an API request. In general: Codes in the `2xx` range indicate success. Codes in the `4xx` range indicate an error that failed given the information provided (e.g., a required parameter was omitted, a charge failed, etc.). Codes in the `5xx` range indicate an error with Stripe's servers (these are rare).  
-    Some `4xx` errors that could be handled programmatically (e.g., a card is [declined](https://docs.stripe.com/declines.md)) include an [error code](https://docs.stripe.com/error-codes.md) that briefly explains the error reported.""",
-            """| `api_error`             | API errors cover any other type of problem (e.g., a temporary problem with Stripe's servers), and are extremely uncommon.                                 |
-    | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-    | `card_error`            | Card errors are the most common type of error you should expect to handle. They result when the user enters a card that can't be charged for some reason. |
-    | `idempotency_error`     | Idempotency errors occur when an `Idempotency-Key` is re-used on a request that does not match the first request's API endpoint and parameters.           |
-    | `invalid_request_error` | Invalid request errors arise when your request has invalid parameters.                                                                                    |"""
-        ],
-        "propositional_chunks": [
-            "- Related guide: [Error Handling](https://docs.stripe.com/error-handling.md)",
-            "For some errors that could be handled programmatically, a short string indicating the [error code](https://docs.stripe.com/docs/error-codes.md) reported.",
-            "Stripe uses conventional HTTP response codes to indicate the success or failure of an API request"
-        ],
-        "recursive_chunks": [
-            """# Handling errors
+@st.cache_data
+def load_document():
+    with open("leave_policy.txt", "r", encoding="utf-8") as f:
+        return f.read()
 
-    Our Client libraries raise exceptions for many reasons, such as a failed charge, invalid parameters, authentication errors, and network unavailability. We recommend writing code that gracefully handles all possible API exceptions.
 
-    - Related guide: [Error Handling](https://docs.stripe.com/error-handling.md)""",
-            """# Errors
+document_text = load_document()
 
-    Stripe uses conventional HTTP response codes to indicate the success or failure of an API request. In general: Codes in the `2xx` range indicate success. Codes in the `4xx` range indicate an error that failed given the information provided (e.g., a required parameter was omitted, a charge failed, etc.). Codes in the `5xx` range indicate an error with Stripe's servers (these are rare).
 
-    Some `4xx` errors that could be handled programmatically (e.g., a card is [declined](https://docs.stripe.com/declines.md)) include an [error code](https://docs.stripe.com/error-codes.md) that briefly explains the error reported.
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")  # or your preferred model
 
-    ## Attributes
 
-    - `advice_code` (string, nullable)
-    For card errors resulting from a card issuer decline, a short string indicating [how to proceed with an error](https://docs.stripe.com/docs/declines.md#retrying-issuer-declines) if they provide one.
+embedding_model = load_model()
 
-    - `charge` (string, nullable)
-    For card errors, the ID of the failed charge.""",
-            """- `charge` (string, nullable)
-    For card errors, the ID of the failed charge.
 
-    - `code` (string, nullable)
-    For some errors that could be handled programmatically, a short string indicating the [error code](https://docs.stripe.com/docs/error-codes.md) reported.
-
-    - `decline_code` (string, nullable)
-    For card errors resulting from a card issuer decline, a short string indicating the [card issuer's reason for the decline](https://docs.stripe.com/docs/declines.md#issuer-declines) if they provide one.
-
-    - `doc_url` (string, nullable)
-    A URL to more information about the [error code](https://docs.stripe.com/docs/error-codes.md) reported.
-
-    - `message` (string, nullable)
-    A human-readable message providing more details about the error. For card errors, these messages can be shown to your users."""
-        ]
-    }
-
-    # Streamlit app
-    st.title("Chunking Method Comparison")
-    st.subheader("Query: 'How does Stripe handle authentication errors?'")
-
-    # Display results in tabs
-    tabs = st.tabs([col.replace("_", " ").title() for col in CHUNK_DATA.keys()])
-
-    for i, (collection, chunks) in enumerate(CHUNK_DATA.items()):
-        with tabs[i]:
-            st.markdown(f"**Collection:** `{collection}`")
-            st.markdown(f"**Top {len(chunks)} chunks:**")
-            
-            for j, chunk in enumerate(chunks, 1):
-                with st.expander(f"Chunk {j} (Length: {len(chunk)} chars)"):
-                    st.markdown(f"""
-                    ```text
-                    {chunk}
-                    ```
-                    """)
-                    
-                    # Basic analysis
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Character Count", len(chunk))
-                    with col2:
-                        st.metric("Word Count", len(chunk.split()))
-                    
-                    # Highlight keywords
-                    keywords = ["authentication", "error", "key", "API"]
-                    highlighted = chunk
-                    for word in keywords:
-                        highlighted = highlighted.replace(word, f"**{word}**")
-                    st.markdown("Keyword highlights:")
-                    st.markdown(highlighted)
-
-    # Comparison table
-    st.divider()
-    st.header("Comparison Across Methods")
-
-    comparison_data = []
-    for collection, chunks in CHUNK_DATA.items():
-        for j, chunk in enumerate(chunks, 1):
-            comparison_data.append({
-                "Method": collection.replace("_", " ").title(),
-                "Chunk #": j,
-                "Content Preview": chunk[:100] + "..." if len(chunk) > 100 else chunk,
-                "Length": len(chunk),
-                "Contains 'auth'": "authentication" in chunk.lower(),
-                "Contains 'error'": "error" in chunk.lower()
-            })
-
-    df = pd.DataFrame(comparison_data)
-    st.dataframe(
-        df,
-        column_config={
-            "Content Preview": st.column_config.TextColumn(width="large"),
-            "Contains 'auth'": st.column_config.CheckboxColumn(),
-            "Contains 'error'": st.column_config.CheckboxColumn()
-        },
-        hide_index=True,
-        use_container_width=True
+# --- Chunking Functions ---
+def fixed_size_chunking(text, chunk_size, chunk_overlap):
+    splitter = CharacterTextSplitter(
+        separator="\n", chunk_size=chunk_size, chunk_overlap=chunk_overlap
     )
+    return splitter.split_text(text)
 
-    # Analysis section
-    st.divider()
-    st.header("Analysis")
 
-    analysis = """
-    ### Key Observations:
+def semantic_chunking(text, chunk_size, chunk_overlap):
+    if chunk_size > embedding_model.max_seq_length:
+        chunk_size = embedding_model.max_seq_length
+    splitter = SentenceTransformersTokenTextSplitter(
+        chunk_overlap=chunk_overlap,
+        tokens_per_chunk=chunk_size,
+    )
+    return splitter.split_text(text)
 
-    1. **Fixed Size Chunks**: 
-    - Shows fragmented pieces of error handling content
-    - Misses complete context about authentication specifically
-    - Average length: ~250 chars
 
-    2. **Semantic Chunks**: 
-    - Contains more complete sentences about error types
-    - Includes authentication references but with formatting issues
-    - Average length: ~400 chars
+def hierarchical_chunking(text):
+    headers_to_split_on = [("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")]
+    splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+    chunks = splitter.split_text(text)
+    return [chunk.page_content for chunk in chunks]
 
-    3. **Hierarchical Chunks**: 
-    - Best preserves document structure
-    - Contains the most relevant chunk about authentication errors
-    - Average length: ~300 chars
 
-    4. **Propositional Chunks**: 
-    - Too fragmented to be useful alone
-    - Would require combining multiple chunks
-    - Average length: ~100 chars
+def propositional_chunking(text):
+    splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", ". ", "! ", "? "],
+        chunk_size=100,
+        chunk_overlap=20
+    )
+    return splitter.split_text(text)
 
-    5. **Recursive Chunks**: 
-    - Excellent balance of context and specificity
-    - Contains full error handling section with authentication mentions
-    - Average length: ~500 chars
 
-    ### Recommendation:
-    For authentication-related queries, **hierarchical** and **recursive** chunking methods performed best in preserving relevant context while maintaining readability.
-    """
+def recursive_chunking(text):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len,
+        separators=["\n\n\n", "\n\n", "\n", " "]
+    )
+    return splitter.split_text(text)
 
-    st.markdown(analysis)
-    
+
+if st.session_state.page == "Chunking Comparison":
+    st.title("Chunking Method Comparison")
+
+    st.subheader("📌 Document Preview")
+    st.code(document_text, language="markdown")
+
+    chunk_method = st.selectbox("Select chunking method", [
+        "Fixed Size", "Semantic", "Hierarchical", "Propositional", "Recursive"
+    ])
+
+    if chunk_method in ["Fixed Size", "Semantic"]:
+        chunk_size = st.number_input("Chunk size", min_value=50, max_value=512, value=500)
+        chunk_overlap = st.number_input("Chunk overlap", min_value=0, max_value=chunk_size - 1, value=50)
+
+    if st.button("🔪 Chunk Document"):
+        if chunk_method == "Fixed Size":
+            chunks = fixed_size_chunking(document_text, chunk_size, chunk_overlap)
+        elif chunk_method == "Semantic":
+            chunks = semantic_chunking(document_text, chunk_size, chunk_overlap)
+        elif chunk_method == "Hierarchical":
+            chunks = hierarchical_chunking(document_text)
+        elif chunk_method == "Propositional":
+            chunks = propositional_chunking(document_text)
+        elif chunk_method == "Recursive":
+            chunks = recursive_chunking(document_text)
+        else:
+            chunks = []
+
+        st.success(f"✅ Generated {len(chunks)} chunks using `{chunk_method}` method.")
+
+        for i, chunk in enumerate(chunks, 1):
+            with st.expander(f"Chunk {i} (Length: {len(chunk)} chars)"):
+                st.markdown(f"```text\n{chunk}\n```")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Character Count", len(chunk))
+                with col2:
+                    st.metric("Word Count", len(chunk.split()))
+
+                keywords = ["authentication", "error", "key", "API"]
+                highlighted = chunk
+                for word in keywords:
+                    highlighted = highlighted.replace(word, f"**{word}**")
+                st.markdown("Keyword highlights:")
+                st.markdown(highlighted)
+
+
+
 elif st.session_state.page == "RAG Comparison":
     @dataclass
     class RAGResult:
@@ -235,8 +192,8 @@ elif st.session_state.page == "RAG Comparison":
         generation_time: float
         total_time: float
         similarity_scores: List[float]
-        query_variations: List[str]
         sources: List[str]
+        query_variations: Optional[List[str]] = None
 
 
     class QdrantRAGSystem:
@@ -363,7 +320,7 @@ elif st.session_state.page == "RAG Comparison":
             )
 
         async def hybrid_rag(self, query: str, collection_name: str, top_k: int = 5,
-                            vector_weight: float = 0.7) -> RAGResult:
+                             vector_weight: float = 0.7) -> RAGResult:
             """Hybrid RAG: Combines vector and keyword search"""
             start_time = time.time()
 
@@ -586,7 +543,7 @@ elif st.session_state.page == "RAG Comparison":
             subplot_titles=('Response Times', 'Average Similarity Scores',
                             'Time Breakdown', 'Retrieved Sources Count'),
             specs=[[{"secondary_y": False}, {"secondary_y": False}],
-                [{"secondary_y": False}, {"secondary_y": False}]]
+                   [{"secondary_y": False}, {"secondary_y": False}]]
         )
 
         # Response times comparison
@@ -672,9 +629,7 @@ elif st.session_state.page == "RAG Comparison":
             st.header("Configuration")
 
             # Qdrant settings
-            st.subheader("Qdrant Settings")
-            qdrant_url = st.text_input("Qdrant URL", value="https://your-cluster.qdrant.io")
-            qdrant_api_key = st.text_input("Qdrant API Key", type="password")
+
 
             # Gemini settings
             st.subheader("Gemini Settings")
@@ -682,7 +637,12 @@ elif st.session_state.page == "RAG Comparison":
 
             # Collection selection
             st.subheader("Collection Settings")
-            collection_name = st.text_input("Collection Name", value="your_collection")
+            mapped_name = st.selectbox(
+                "🔍 Select Chunking Strategy (Leave Policy)",
+                options=list(mapping.keys())
+            )
+
+            collection_name = mapping[mapped_name]
 
             # RAG parameters
             st.subheader("RAG Parameters")
@@ -690,13 +650,13 @@ elif st.session_state.page == "RAG Comparison":
             vector_weight = st.slider("Vector Weight (Hybrid RAG)", 0.0, 1.0, 0.7, 0.1)
 
         # Main interface
-        if not all([qdrant_url, qdrant_api_key, gemini_api_key, collection_name]):
+        if not all([gemini_api_key, collection_name]):
             st.warning("Please provide all required configuration parameters in the sidebar.")
             return
 
         # Initialize RAG system
         try:
-            rag_system = QdrantRAGSystem(qdrant_url, qdrant_api_key, gemini_api_key)
+            rag_system = QdrantRAGSystem(QDRANT_URL, QDRANT_API_KEY,gemini_api_key)
             st.success("RAG system initialized successfully!")
         except Exception as e:
             st.error(f"Failed to initialize RAG system: {str(e)}")
@@ -922,6 +882,7 @@ elif st.session_state.page == "RAG Comparison":
                 mime="application/json",
                 key=f"download_{result.method}"
             )
+
 
     if __name__ == "__main__":
         asyncio.run(main())
