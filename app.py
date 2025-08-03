@@ -123,7 +123,7 @@ if st.session_state.page == "Chunking Comparison":
     }
 
     # Streamlit app
-    st.title("Chunking Method Comparison (Hardcoded Data)")
+    st.title("Chunking Method Comparison")
     st.subheader("Query: 'How does Stripe handle authentication errors?'")
 
     # Display results in tabs
