@@ -36,6 +36,10 @@ from pydantic import PrivateAttr
 from typing import List
 
 from llama_index.core import SimpleDirectoryReader
+import streamlit as st
+
+
+GEMINI_API_KEY = st.secrets["gemini"]["api_key"]
 
 # load documents
 
@@ -722,11 +726,6 @@ elif st.session_state.page == "RAG Comparison":
 
             # Qdrant settings
 
-
-            # Gemini settings
-            st.subheader("Gemini Settings")
-            gemini_api_key = st.text_input("Gemini API Key", type="password")
-
             # Collection selection
             st.subheader("Collection Settings")
             mapped_name = st.selectbox(
@@ -748,7 +747,7 @@ elif st.session_state.page == "RAG Comparison":
 
         # Initialize RAG system
         try:
-            rag_system = QdrantRAGSystem(QDRANT_URL, QDRANT_API_KEY,gemini_api_key)
+            rag_system = QdrantRAGSystem(QDRANT_URL, QDRANT_API_KEY,GEMINI_API_KEY)
             st.success("RAG system initialized successfully!")
         except Exception as e:
             st.error(f"Failed to initialize RAG system: {str(e)}")
