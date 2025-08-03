@@ -127,7 +127,7 @@ embedding_model = load_model()
 # --- Chunking Functions ---
 def fixed_size_chunking(text, chunk_size, chunk_overlap):
     splitter = CharacterTextSplitter(
-        separator="\n", chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        separator=" ", chunk_size=chunk_size, chunk_overlap=chunk_overlap
     )
     return splitter.split_text(text)
 
