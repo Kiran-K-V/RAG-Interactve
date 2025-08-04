@@ -160,49 +160,64 @@ def semantic_chunking(breakpoint_threshold):
     nodes = splitter.get_nodes_from_documents(documents)
     return [node.text for node in nodes]
 
-def hierarchical_chunking(text: str):
-    """Split text into hierarchical chunks:
-    - Paragraphs
-    - Sentences within paragraphs
-    - Bullet lists (both full lists and individual items)
+def hierarchical_chunking(text: str) -> List[str]:
     """
-    chunks = []
-    
-    # First normalize line endings and remove empty lines
-    text = re.sub(r'\r\n', '\n', text).strip()
-    
-    # Split by paragraphs (double newlines or markdown headers)
-    paragraphs = re.split(r'\n\n|\n#+ ', text)
-    paragraphs = [p.strip() for p in paragraphs if p.strip()]
-    
-    for para in paragraphs:
-        # Add the full paragraph as a chunk
-        chunks.append(para)
-        
-        # Handle bullet point lists specially
-        if para.startswith(('* ', '- ', '+ ')) or re.search(r'\n[*+-] ', para):
-            # Split bullet list items
-            bullet_items = re.split(r'\n[*+-] ', para)
-            # First item is the list header (might be empty)
-            if bullet_items[0].strip():
-                chunks.append(bullet_items[0].strip())
-            
-            # Add each bullet item as separate chunk
-            for item in bullet_items[1:]:
-                item = item.strip()
-                if item:
-                    chunks.append(f"• {item}")
-        
-        else:  # Regular paragraph - split by sentences
-            # Split sentences using a simple regex (improve as needed)
-            sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s', para)
-            sentences = [s.strip() for s in sentences if s.strip()]
-            
-            # Add sentences only if we actually split the paragraph
-            if len(sentences) > 1:
-                chunks.extend(sentences)
-    
-    return chunks
+    Uses Gemini LLM to split text into hierarchical chunks such as:
+    - Paragraph-level units
+    - Sentences within paragraphs
+    - Bullet lists as individual chunks
+
+    You must initialize the `model` (e.g., genai.GenerativeModel) before calling.
+    """
+
+    prompt = f"""
+            You are a document processing assistant for a RAG system. Perform hierarchical chunking on the following text:
+
+            Step 1: Split the input into paragraph-level chunks with the whole paragraph as one chunk. RETURN EACH PARAGRAPH AS A SEPARATE CHUNK.
+            Step 2: For each paragraph, extract individual sentence-level chunks. RETURN EACH SENTENCE AS A SEPARATE CHUNK.
+            Step 3: For any bullet points, treat each bullet item as one chunk (including multiple sentences if they exist).
+
+            Formatting Rules:
+            - Each chunk on a new line.
+            - Preserve full sentences.
+
+            Example Input:
+            Health is important. A healthy body leads to a healthy mind.
+
+            Here are some tips:
+            - Eat well. Drink water.
+            - Exercise daily.
+
+            Example Output:
+            Health is important. A healthy body leads to a healthy mind.  
+            Health is important.  
+            A healthy body leads to a healthy mind.  
+            Here are some tips:  
+            - Eat well. Drink water.  
+
+            Process the following text:
+
+            \"\"\"
+            {text}
+            \"\"\"
+
+            Chunks:
+            """
+
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        result = response.text.strip()
+        chunks = [line.strip() for line in result.split('\n') if line.strip()]
+        return chunks
+
+    except Exception as e:
+        st.error(f"LLM-based hierarchical chunking failed: {str(e)}")
+        return []
+
 
 def propositional_chunking(text: str) -> List[str]:
     """
@@ -242,7 +257,6 @@ def propositional_chunking(text: str) -> List[str]:
     except Exception as e:
         st.error(f"LLM-based propositional chunking failed: {str(e)}")
         return []
-
 
 
 def recursive_chunking(text):
