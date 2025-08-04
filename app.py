@@ -132,14 +132,13 @@ embedding_model = load_model()
 #     )
 #     return splitter.split_text(text)
 
-def fixed_size_chunking(text, chunk_size, chunk_overlap):
-    words = text.split()
+def fixed_size_chunking(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
     chunks = []
     start = 0
 
-    while start < len(words):
+    while start < len(text):
         end = start + chunk_size
-        chunk = " ".join(words[start:end])
+        chunk = text[start:end]
         chunks.append(chunk)
         start += chunk_size - chunk_overlap  # move start with overlap
 
