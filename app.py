@@ -81,11 +81,11 @@ QDRANT_URL = "https://eecc4d29-21eb-4d25-8a1b-eb23e1ef755f.us-east4-0.gcp.cloud.
 QDRANT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.GD9lmgww5vC-oZ70qukwmd-vn3PaXIopyP5SpTldTdA"
 
 mapping = {
-    "Semantic Chunking": "semantic_chunks_leave_policy",
-    "Fixed Size Chunking": "fixed_size_chunks_leave_policy",
+    "Semantic Chunking": "semantic_chunks_leave_policy_new",
+    "Fixed Size Chunking": "fixed_size_chunks_leave_policy_new",
     "Recursive Chunking": "recursive_chunks_leave_policy",
-    "Hierarchical Chunking": "hierarchical_chunks_leave_policy",
-    "Propositional Chunking": "propositional_chunks_leave_policy"
+    "Hierarchical Chunking": "hierarchical_chunks_leave_policy_new",
+    "Propositional Chunking": "propositional_chunks_leave_policy_new"
 }
 
 # Sidebar Navigation
