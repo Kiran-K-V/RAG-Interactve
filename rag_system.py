@@ -13,7 +13,6 @@ from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from config import GEMINI_API_KEY
 
 
 @dataclass
@@ -34,7 +33,7 @@ class RAGResult:
 class QdrantRAGSystem:
     """Advanced RAG system with multiple retrieval strategies"""
 
-    def __init__(self, qdrant_url: str, qdrant_api_key: str, gemini_api_key: str = GEMINI_API_KEY):
+    def __init__(self, qdrant_url: str, qdrant_api_key: str, gemini_api_key: str):
         try:
             # Initialize Qdrant client
             self.qdrant_client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)

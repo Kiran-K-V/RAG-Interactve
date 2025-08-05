@@ -2,7 +2,6 @@
 Configuration settings and constants for the RAG Interactive application.
 """
 
-
 # Qdrant Configuration
 QDRANT_URL: str = "https://eecc4d29-21eb-4d25-8a1b-eb23e1ef755f.us-east4-0.gcp.cloud.qdrant.io:6333/"
 QDRANT_API_KEY: str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.GD9lmgww5vC-oZ70qukwmd-vn3PaXIopyP5SpTldTdA"
