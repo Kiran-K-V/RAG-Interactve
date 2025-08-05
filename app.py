@@ -94,7 +94,7 @@ def perform_chunking(document_text, chunk_method, params, gemini_api_key):
             document_text, params["chunk_size"], params["chunk_overlap"]
         )
     elif chunk_method == "Semantic":
-        return semantic_chunking(breakpoint_threshold=params["breakpoint_threshold"])
+        return semantic_chunking(breakpoint_threshold=params["breakpoint_threshold"], gemini_api_key=gemini_api_key)
     elif chunk_method == "Hierarchical":
         return hierarchical_chunking(document_text)
     elif chunk_method == "Propositional":

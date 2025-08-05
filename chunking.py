@@ -6,9 +6,6 @@ import re
 import streamlit as st
 import google.generativeai as genai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from llama_index.core.node_parser import SemanticSplitterNodeParser
-from llama_index.core import SimpleDirectoryReader
-from embeddings import LocalSentenceTransformerEmbedding
 from config import DOCUMENT_PATH
 
 
@@ -61,7 +58,7 @@ def fixed_size_chunking(text: str, chunk_size: int, chunk_overlap: int):
     return chunks
 
 
-def semantic_chunking(breakpoint_threshold):
+def semantic_chunking(breakpoint_threshold, gemini_api_key):
     """
     Split text into semantic chunks using LlamaIndex SemanticSplitterNodeParser.
 
@@ -71,17 +68,50 @@ def semantic_chunking(breakpoint_threshold):
     Returns:
         List of semantic chunks
     """
-    documents = SimpleDirectoryReader(input_files=[DOCUMENT_PATH]).load_data()
-    embed_model = LocalSentenceTransformerEmbedding()
+    genai.configure(api_key=gemini_api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
-    splitter = SemanticSplitterNodeParser(
-        buffer_size=1,
-        breakpoint_percentile_threshold=breakpoint_threshold,
-        embed_model=embed_model,
-    )
+    with open(DOCUMENT_PATH, "r", encoding="utf-8") as f:
+        text = f.read()
 
-    nodes = splitter.get_nodes_from_documents(documents)
-    return [node.text for node in nodes]
+    prompt = f"""
+    Role: You are a highly proficient text analysis and document processing AI. Your task is to break down a provided document into semantically meaningful chunks.
+
+Objective: The goal is not to create chunks of a fixed size (e.g., 500 characters) but to identify and group together sentences and paragraphs that convey a single, cohesive idea or topic. Each chunk should be self-contained and represent a distinct logical unit of the document.
+
+Instructions:
+
+* Analyze the Document: Read the entire document to understand its overall structure, main topics, and subtopics.
+* Identify Semantic Boundaries: Look for natural transitions in the text. These are points where the author shifts from discussing one idea to another. These boundaries often occur at:
+    * The end of a section or subsection.
+    * The introduction of a new topic, concept, or argument.
+    * The conclusion of a specific point.
+    * Changes in the narrative or logical flow.
+* Group Cohesive Content: Group together all sentences and paragraphs that contribute to a single, unified idea. A chunk should be a complete thought.
+* Preserve Context: Each chunk should be able to be understood on its own, or with minimal context from the rest of the document. Ensure that the core meaning of the chunk is not lost.
+* Output Format: Return only the chunks, separated by "---CHUNK---".
+
+Example of an ideal chunk:
+* A paragraph describing the causes of a historical event.
+* A list of steps for a procedure, including its introduction and summary.
+* A section defining a key term and providing a few examples.
+* An argument presented in a paragraph, followed by a counter-argument in the next. (This could be two separate chunks, or one, depending on how tightly they are linked).
+
+Text:
+{text}
+
+Expected Output:
+
+The full text of the first semantic unit.
+---CHUNK---
+The full text of the second semantic unit.
+---CHUNK---
+The full text of the third semantic unit.
+... and so on
+    """
+
+    chunks = model.generate_content(prompt)
+    return chunks.text.split("---CHUNK---")
 
 
 def hierarchical_chunking(text: str):
