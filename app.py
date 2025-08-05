@@ -7,7 +7,7 @@ import asyncio
 from datetime import datetime
 
 # Import custom modules
-from config import QDRANT_URL, QDRANT_API_KEY, GEMINI_API_KEY, COLLECTION_MAPPING
+from config import QDRANT_URL, QDRANT_API_KEY, COLLECTION_MAPPING
 from chunking import (
     load_document,
     fixed_size_chunking,
@@ -267,6 +267,14 @@ elif st.session_state.page == "RAG Comparison":
         with st.sidebar:
             st.header("⚙️ Configuration")
 
+            st.subheader("API Configuration")
+            GEMINI_API_KEY= st.text_input(
+                "Gemini API Key",
+                type="password",
+                placeholder="Enter your Gemini API key...",
+                help="Get your API key from Google AI Studio"
+            )
+
             # Collection selection
             st.subheader("Collection Settings")
             mapped_name = st.selectbox(
@@ -282,7 +290,7 @@ elif st.session_state.page == "RAG Comparison":
             vector_weight = st.slider("Vector Weight (Hybrid RAG)", 0.0, 1.0, 0.7, 0.1)
 
         # Main interface
-        if not collection_name:
+        if not collection_name or GEMINI_API_KEY is None:
             st.warning(
                 "Please provide all required configuration parameters in the sidebar."
             )
