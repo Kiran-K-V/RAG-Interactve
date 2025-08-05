@@ -9,12 +9,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from llama_index.core.node_parser import SemanticSplitterNodeParser
 from llama_index.core import SimpleDirectoryReader
 from embeddings import LocalSentenceTransformerEmbedding
-from config import GEMINI_API_KEY, DOCUMENT_PATH
-
-
-# Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+from config import DOCUMENT_PATH
 
 
 @st.cache_data
@@ -28,21 +23,42 @@ def fixed_size_chunking(text: str, chunk_size: int, chunk_overlap: int):
     """
     Split text into fixed-size chunks with specified overlap.
 
+    This implementation creates chunks of exactly chunk_size characters
+    with the specified overlap between consecutive chunks.
+
     Args:
         text: Input text to chunk
-        chunk_size: Size of each chunk
-        chunk_overlap: Overlap between chunks
+        chunk_size: Size of each chunk (in characters)
+        chunk_overlap: Overlap between chunks (in characters)
 
     Returns:
         List of text chunks
     """
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
-        length_function=len,
-        separators=["\n\n", "\n", " ", ""],
-    )
-    return splitter.split_text(text)
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than 0")
+    if chunk_overlap < 0:
+        raise ValueError("chunk_overlap must be non-negative")
+    if chunk_overlap >= chunk_size:
+        raise ValueError("chunk_overlap must be less than chunk_size")
+
+    chunks = []
+    start = 0
+    text_length = len(text)
+
+    while start < text_length:
+        end = min(start + chunk_size, text_length)
+
+        chunk = text[start:end]
+
+        if chunk.strip():
+            chunks.append(chunk)
+
+        if end == text_length:
+            break
+
+        start = start + chunk_size - chunk_overlap
+
+    return chunks
 
 
 def semantic_chunking(breakpoint_threshold):
@@ -74,29 +90,7 @@ def hierarchical_chunking(text: str):
     - Paragraph-level units
     - Sentences within paragraphs
     - Bullet lists as individual chunks
-
-    You must initialize the `model` (e.g., genai.GenerativeModel) before calling.
     """
-    # prompt = f"""
-    # Please split the following text into hierarchical chunks. Follow these rules:
-    # 1. Each paragraph should be a separate chunk
-    # 2. Long paragraphs (>300 words) should be split into smaller logical units
-    # 3. Bullet points or numbered lists should be individual chunks
-    # 4. Maintain context and coherence within each chunk
-    # 5. Return only the chunks, separated by "---CHUNK---"
-
-    # Text:
-    # {text}
-    # """
-
-    # try:
-    #     response = model.generate_content(prompt)
-    #     chunks = response.text.split("---CHUNK---")
-    #     return [chunk.strip() for chunk in chunks if chunk.strip()]
-    # except Exception as e:
-    #     st.error(f"Error in hierarchical chunking: {e}")
-    #     # Fallback to simple paragraph splitting
-    #     return [chunk.strip() for chunk in text.split("\n\n") if chunk.strip()]
 
     lines = text.split("\n")
     # Initialize structure
@@ -131,10 +125,9 @@ def hierarchical_chunking(text: str):
     return hierarchy
 
 
-def propositional_chunking(text: str):
+def propositional_chunking(text: str, gemini_api_key: str):
     """
     Uses Gemini LLM to split text into propositional chunks.
-    You must initialize the `model` (e.g., genai.GenerativeModel) before calling.
     """
     prompt = f"""
     Please split the following text into propositional chunks. Each chunk should contain:
@@ -146,6 +139,9 @@ def propositional_chunking(text: str):
     Text:
     {text}
     """
+
+    genai.configure(api_key=gemini_api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     try:
         response = model.generate_content(prompt)
