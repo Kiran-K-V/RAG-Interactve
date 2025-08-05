@@ -2,10 +2,6 @@
 Configuration settings and constants for the RAG Interactive application.
 """
 
-import streamlit as st
-
-# API Keys
-GEMINI_API_KEY: str = st.secrets["gemini"]["api_key"]
 
 # Qdrant Configuration
 QDRANT_URL: str = "https://eecc4d29-21eb-4d25-8a1b-eb23e1ef755f.us-east4-0.gcp.cloud.qdrant.io:6333/"
