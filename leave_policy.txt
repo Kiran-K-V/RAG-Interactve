@@ -66,14 +66,13 @@ Following leaves are considered as special leaves. Kindly notify the HR directly
 - It is **mandatory** to work from the office on the remaining **3 days** of the week (**Tuesday, Wednesday, and Thursday**)  
 - During the probation period, new employees are required to come to office on working days  
 
-For employees with **less than one** year of experience, it is mandatory 
-to **work from the office (WFO) on all working days** .Any exceptions need 
-to be discussed with the HRD.For WFH exceeding **3 days**, apart from the permitted days, 
-discuss with **HRD** and email it to Nucleus Team, Project Lead, and HRD
+For employees with **less than one** year of experience, it is mandatory to **work from the office (WFO) on all working days**. Any exceptions need to be discussed with the HRD.
+
+For WFH exceeding **3 days**, apart from the permitted days, discuss with **HRD** and email it to Nucleus Team, Project Lead, and HRD.
 
 ---
 
-## 🏋️‍♀️ **Fitness & Health - Gym Partnership**
+# 🏋️‍♀️ **Fitness & Health - Gym Partnership**
 
 At KeyValue, we firmly believe that health is the greatest wealth. A healthy lifestyle not only enhances physical well-being but also improves energy levels, focus, and overall happiness—both at work and in life.
 
@@ -91,7 +90,7 @@ These centres offer modern facilities, expert trainers, and an encouraging atmos
 
 We've secured exclusive discounted rates with partial sponsorship from KeyValue:
 
-#### 1. **Multi-location Access (dARC1 & d5N)**
+### **1. Multi-location Access (dARC1 & d5N)**
 
 - **Regular Price**: INR 20,000 (dARC1), INR 15,000 (d5N)  
 - **Offer**: INR 15,000 for 13 months  
@@ -99,34 +98,34 @@ We've secured exclusive discounted rates with partial sponsorship from KeyValue:
   - You pay: INR 10,000  
   - KeyValue sponsors: INR 5,000  
 
-#### 2. **Limited Access (Mavelipuram & Edapally only)**
+### **2. Limited Access (Mavelipuram & Edapally only)**
 
 - **Offer**: INR 10,000 for 12 months  
   - Valid only at Mavelipuram and Edapally  
   - You pay: INR 6,000  
   - KeyValue sponsors: INR 4,000
 
-#### 3. **Trans4mers Fitness**
+### **3. Trans4mers Fitness**
 
 - **Offer**: INR 12,000 for 12 months  
   - You pay: INR 8,000  
   - KeyValue sponsors: INR 4,000
 
-### **How to Avail the Scheme**
+### **4. How to Avail the Scheme**
 
 - Visit either **dARC1 Fitness – Infopark** (above Easybuy, Grand Central) or **Trans4mers Fitness**  
 - Carry your **KeyValue ID card**  
 - Pay your contribution at the gym  
 - Complete the membership registration on-site
 
-### **Disclaimer**
+### **5. Disclaimer**
 
 To ensure genuine participation:
 
 - You must use the membership for **at least 2 months**  
 - Failure to do so will result in you having to **refund the sponsored amount**
 
-### **📞 Contact for Queries**
+## **📞 Contact for Queries**
 
 For any questions or assistance, please reach out to:  
 **@Alex George**
