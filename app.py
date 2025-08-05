@@ -87,7 +87,7 @@ def get_chunking_parameters(chunk_method):
     return params
 
 
-def perform_chunking(document_text, chunk_method, params):
+def perform_chunking(document_text, chunk_method, params, gemini_api_key):
     """Perform chunking based on selected method and parameters."""
     if chunk_method == "Fixed Size":
         return fixed_size_chunking(
@@ -98,7 +98,7 @@ def perform_chunking(document_text, chunk_method, params):
     elif chunk_method == "Hierarchical":
         return hierarchical_chunking(document_text)
     elif chunk_method == "Propositional":
-        return propositional_chunking(document_text)
+        return propositional_chunking(document_text, gemini_api_key)
     elif chunk_method == "Recursive":
         return recursive_chunking(document_text)
     else:
@@ -207,10 +207,10 @@ def render_chunking_method_selection():
     return chunk_method, params
 
 
-def process_and_display_chunks(document_text, chunk_method, params):
+def process_and_display_chunks(document_text, chunk_method, params, gemini_api_key):
     """Process the document and display the resulting chunks."""
     try:
-        chunks = perform_chunking(document_text, chunk_method, params)
+        chunks = perform_chunking(document_text, chunk_method, params, gemini_api_key)
 
         st.success(f"✅ Generated {len(chunks)} chunks using `{chunk_method}` method.")
 
@@ -227,6 +227,17 @@ def process_and_display_chunks(document_text, chunk_method, params):
 
 
 def render_chunking_page():
+    with st.sidebar:
+        st.header("⚙️ Configuration")
+
+        st.subheader("API Configuration")
+        GEMINI_API_KEY = st.text_input(
+            "Gemini API Key",
+            type="password",
+            placeholder="Enter your Gemini API key...",
+            help="Get your API key from Google AI Studio"
+        )
+
     """Render the chunking comparison page."""
     st.title("📦 Chunking Method Comparison")
 
@@ -240,7 +251,12 @@ def render_chunking_page():
     # Process chunks when button is clicked
     if st.button("🔄 Chunk Document", type="primary"):
         with st.spinner(f"Processing document with {chunk_method} chunking..."):
-            process_and_display_chunks(document_text, chunk_method, params)
+            process_and_display_chunks(
+                document_text=document_text,
+                chunk_method=chunk_method,
+                params=params,
+                gemini_api_key=GEMINI_API_KEY
+            )
 
 
 # ================================
